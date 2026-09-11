@@ -46,7 +46,7 @@ You will need the following API keys to run all verfication paths:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/TradeCheck.git
+   git clone https://github.com/Favour-chuks/TradeCheck.git
    cd TradeCheck
    ```
 
