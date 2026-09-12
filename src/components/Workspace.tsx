@@ -12,6 +12,7 @@ import { CalleResult } from '@/lib/calle';
 import { CACResult } from '@/lib/cac';
 import { CompaniesHouseResult } from '@/lib/companieshouse';
 import { ChinaVerificationResult } from '@/lib/china';
+import { USVerificationResult } from '@/lib/us';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -41,6 +42,8 @@ export function Workspace() {
   let latestUkCallResult: CalleResult | null = null;
   let latestChinaResult: ChinaVerificationResult | null = null;
   let latestChinaCallResult: CalleResult | null = null;
+  let latestUsResult: USVerificationResult | null = null;
+  let latestUsCallResult: CalleResult | null = null;
   let isCheckingGstin = false;
   let isCalling = false;
   let isCheckingCac = false;
@@ -49,6 +52,8 @@ export function Workspace() {
   let isCallingUk = false;
   let isCheckingChina = false;
   let isCallingChina = false;
+  let isCheckingUs = false;
+  let isCallingUs = false;
   let claimedTerms: string | undefined;
   let transcriptToSummarise: string | undefined;
 
@@ -118,6 +123,22 @@ export function Workspace() {
           claimedTerms = (part as { input?: { claimedTerms?: string } }).input?.claimedTerms;
         }
       }
+      // US path
+      if (part.type === 'tool-verifyUSSupplier') {
+        if (part.state === 'output-available') latestUsResult = part.output as USVerificationResult;
+        else if (part.state === 'input-streaming' || part.state === 'input-available') isCheckingUs = true;
+      }
+      if (part.type === 'tool-callUSSupplier') {
+        if (part.state === 'input-available' || part.state === 'input-streaming') {
+          isCallingUs = true;
+          claimedTerms = (part as { input?: { claimedTerms?: string } }).input?.claimedTerms;
+        }
+        if (part.state === 'output-available') {
+          isCallingUs = false;
+          latestUsCallResult = part.output as CalleResult;
+          claimedTerms = (part as { input?: { claimedTerms?: string } }).input?.claimedTerms;
+        }
+      }
     }
   }
 
@@ -158,8 +179,9 @@ export function Workspace() {
     latestGstinResult || isCheckingGstin || latestCallResult || isCalling ||
     latestCacResult || isCheckingCac || latestNgCallResult || isCallingNg ||
     latestChResult || isCheckingCh || latestUkCallResult || isCallingUk ||
-    latestChinaResult || isCheckingChina || latestChinaCallResult || isCallingChina;
-  const activeCallResult = latestCallResult || latestNgCallResult || latestUkCallResult || latestChinaCallResult;
+    latestChinaResult || isCheckingChina || latestChinaCallResult || isCallingChina ||
+    latestUsResult || isCheckingUs || latestUsCallResult || isCallingUs;
+  const activeCallResult = latestCallResult || latestNgCallResult || latestUkCallResult || latestChinaCallResult || latestUsCallResult;
   const activeCheckResult = latestGstinResult;
 
   // Transcript summarisation fires when ANY call result with transcript arrives
@@ -504,8 +526,60 @@ export function Workspace() {
                 </>
               )}
 
+              {/* US path: Documentary check */}
+              {(latestUsResult || isCheckingUs) && (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${latestUsResult ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'}`}>1</div>
+                    <span className="text-sm font-medium text-primary-text">US Verification Check</span>
+                  </div>
+                  {isCheckingUs && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center h-36">
+                      <div className="w-6 h-6 border-2 border-gray-400 border-t-black rounded-full animate-spin mb-3" />
+                      <span className="text-secondary-text text-sm">Querying US Registry...</span>
+                    </div>
+                  )}
+                  {latestUsResult && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-5 flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-base font-bold text-primary-text">Company Verification</h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          latestUsResult.isVerified
+                            ? 'bg-green-100 text-green-800 border-green-200'
+                            : 'bg-gray-100 text-gray-800 border-gray-200'
+                        }`}>
+                          {latestUsResult.isVerified ? 'Found' : 'Not Found'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="col-span-2">
+                          <span className="text-secondary-text text-xs block mb-0.5">Company Name</span>
+                          <span className="text-primary-text font-medium">{latestUsResult.companyName}</span>
+                        </div>
+                        <div>
+                          <span className="text-secondary-text text-xs block mb-0.5">EIN</span>
+                          <span className="text-primary-text font-medium">{latestUsResult.ein}</span>
+                        </div>
+                        <div>
+                          <span className="text-secondary-text text-xs block mb-0.5">State of Inc.</span>
+                          <span className="text-primary-text font-medium">{latestUsResult.stateOfIncorporation}</span>
+                        </div>
+                        <div>
+                          <span className="text-secondary-text text-xs block mb-0.5">Status</span>
+                          <span className="text-primary-text font-medium">{latestUsResult.status}</span>
+                        </div>
+                        <div>
+                          <span className="text-secondary-text text-xs block mb-0.5">Entity Type</span>
+                          <span className="text-primary-text font-medium">{latestUsResult.entityType}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
               {/* Step 2: Live Call */}
-              {(activeCheckResult || latestCacResult || latestChResult || latestChinaResult || isCalling || isCallingNg || isCallingUk || isCallingChina || activeCallResult) && (
+              {(activeCheckResult || latestCacResult || latestChResult || latestChinaResult || latestUsResult || isCalling || isCallingNg || isCallingUk || isCallingChina || isCallingUs || activeCallResult) && (
                 <>
                   <div className="flex items-center gap-2 mt-2 mb-1">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${activeCallResult ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'}`}>2</div>
@@ -513,7 +587,7 @@ export function Workspace() {
                   </div>
                   <CallVerdictCard
                     data={activeCallResult}
-                    loading={isCalling || isCallingNg || isCallingUk || isCallingChina}
+                    loading={isCalling || isCallingNg || isCallingUk || isCallingChina || isCallingUs}
                     claimedTerms={claimedTerms}
                     onViewTranscript={() => setShowTranscript(true)}
                   />

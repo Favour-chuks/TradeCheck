@@ -8,7 +8,7 @@ export interface CalleResult {
   advance_payment_requested?: string;
   red_flags?: string[];
   verdict: 'verified_reachable' | 'discrepancy_found' | 'could_not_verify';
-  transcript?: string;
+  transcript?: string | null;
   confidence?: number;
   error?: boolean;
 }
@@ -19,7 +19,7 @@ export interface CalleCallParams {
   productCategory: string;
   claimedTerms: string;
   language?: string;
-  region?: string | 'IN' | 'INTERNATIONAL'; // 'IN' for India, 'INTERNATIONAL' for Nigeria/other
+  region: string | 'IN' | 'INTERNATIONAL'; // 'IN' for India, 'INTERNATIONAL' for Nigeria/other
 }
 
 const TASK_TEMPLATE = (p: CalleCallParams) =>
@@ -58,25 +58,64 @@ export async function placeVerificationCall(params: CalleCallParams): Promise<Ca
       baseUrl: process.env.CALLE_BASE_URL,
     });
 
-    const call = await client.calls.createAndWait({
-      recipient: {
-        phone: params.phoneNumber,
-        region: params.region || 'INTERNATIONAL',
-      },
-      task: TASK_TEMPLATE(params),
-      resultSchema: RESULT_SCHEMA,
-    });
+    console.log(params)
 
-    if (!call.structuredResult){ throw new Error('CALL-E returned no structured result')}
+    const apiKey = process.env.CALLE_API_KEY!;
+    const baseUrl = process.env.CALLE_BASE_URL!.replace(/\/$/, '');
+
+    // 1. Create the call
+    const createRes = await fetch(`${baseUrl}/v1/calls`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        task: `Call ${params.phoneNumber}. ` + TASK_TEMPLATE(params),
+        result_schema: RESULT_SCHEMA,
+      })
+    });
+    if (!createRes.ok) {
+      throw new Error(`Failed to create call: ${await createRes.text()}`);
+    }
+    const createData = await createRes.json();
+    const callId = createData.id;
+
+    // 2. Wait for completion
+    let callData = createData;
+    while (callData.status !== 'completed' && callData.status !== 'failed' && callData.status !== 'canceled') {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      const getRes = await fetch(`${baseUrl}/v1/calls/${callId}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (!getRes.ok) {
+        throw new Error(`Failed to get call status: ${await getRes.text()}`);
+      }
+      callData = await getRes.json();
+    }
+
+    if (!callData.structured_result) {
+      throw new Error('CALL-E returned no structured result');
+    }
+
+    const structured = callData.structured_result as unknown as CalleResult;
     
-    const structured = call.structuredResult.data as CalleResult;
-    structured.transcript = call.transcript || undefined;
+    // Extract transcript from new backend schema locations
+    const transcript = callData.transcript || 
+                       callData.evidence?.[0]?.transcript || 
+                       callData.recipients?.[0]?.attempts?.[0]?.transcript || 
+                       undefined;
+                       
+    structured.transcript = transcript;
     // Derive a simple confidence score from verdict + reached_business
     structured.confidence = deriveConfidence(structured);
     return structured;
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('CALL-E error:', err);
+    if (err.details) {
+      console.error('CALL-E Validation Details:', JSON.stringify(err.details, null, 2));
+    }
     return {
       reached_business: 'unclear',
       verdict: 'could_not_verify',

@@ -21,6 +21,7 @@
   - 🇳🇬 **Nigeria:** CAC (Corporate Affairs Commission) registry lookup.
   - 🇬🇧 **UK:** Companies House direct API integration.
   - 🇨🇳 **China:** CNBizAPI integration.
+  - 🇺🇸 **United States:** EIN/State-level entity verification.
 - **Live Voice Verification:** Integrates with [Call-E](https://heycall-e.com) to place automated phone calls to suppliers. Verifies their identity, product availability, and quoted terms.
 
 ## Tech Stack
@@ -76,6 +77,7 @@ You will need the following API keys to run all verfication paths:
 2. **Nigeria (CAC):** Requires RC Number or Company Name, and phone number.
 3. **United Kingdom (Companies House):** Requires Company Number or Name, and phone number.
 4. **China (CNBizAPI):** Requires Company Name and phone number.
+5. **United States (EIN/State Registry):** Requires Company Name or EIN, and phone number.
 
 ## License
 

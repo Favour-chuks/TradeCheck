@@ -7,6 +7,7 @@ import { placeVerificationCall } from '@/lib/calle';
 import { verifyCACCompany } from '@/lib/cac';
 import { verifyUKCompany } from '@/lib/companieshouse';
 import { verifyChinaCompany } from '@/lib/china';
+import { verifyUSCompany } from '@/lib/us';
 
 export const maxDuration = 120; // CALL-E calls can take up to 60s
 
@@ -62,6 +63,12 @@ WORKFLOW FOR CHINA SUPPLIER (full check):
 1. Gather ALL of the following before starting any verification: company name or USCC (Unified Social Credit Code), phone number (with +86 country code), product category, quoted deal terms, preferred call language (default: Mandarin/English), and the name of the contact person (optional).
 2. Call \`verifyChinaSupplier\` with the company name or USCC for the documentary check.
 3. After the documentary check result comes back, call \`callChinaSupplier\` with all details.
+4. Summarise the outcome.
+
+WORKFLOW FOR US SUPPLIER (full check):
+1. Gather ALL of the following before starting any verification: company name or EIN (Employer Identification Number), phone number (with +1 country code), product category, quoted deal terms, and the name of the contact person (optional).
+2. Call \`verifyUSSupplier\` with the company name or EIN for the documentary check.
+3. After the documentary check result comes back, call \`callUSSupplier\` with all details.
 4. Summarise the outcome.
 
 Gather all necessary information upfront before calling any verification tools to aid user experience. Ask 1–2 questions at a time. Be concise, professional, and friendly. Determine which path to take based on what the user tells you.`,
@@ -123,15 +130,15 @@ Gather all necessary information upfront before calling any verification tools t
             const { text: simulatedTranscript } = await generateText({
               model: googleAI('gemini-3.6-flash'),
               prompt: `Simulate a realistic phone call transcript between an AI verification agent (Agent) and a Nigerian supplier (Supplier).
-The agent is calling on behalf of a buyer to verify the supplier's details.
-Company: ${params.companyName}
-Contact Person: ${params.contactName || 'A representative'}
-Product: ${params.productCategory}
-Claimed terms: ${params.claimedTerms}
-Language: ${params.language || 'English'}
+              The agent is calling on behalf of a buyer to verify the supplier's details.
+              Company: ${params.companyName}
+              Contact Person: ${params.contactName || 'A representative'}
+              Product: ${params.productCategory}
+              Claimed terms: ${params.claimedTerms}
+              Language: ${params.language || 'English'}
 
-Make the conversation sound natural, professional, and typical of a business verification call in Nigeria. The supplier should confirm the business name, product availability, and terms.
-Format as markdown with **Agent:** and **Supplier:** prefixes. Do not include any other text besides the transcript.`
+              Make the conversation sound natural, professional, and typical of a business verification call in Nigeria. The supplier should confirm the business name, product availability, and terms.
+              Format as markdown with **Agent:** and **Supplier:** prefixes. Do not include any other text besides the transcript.`
             });
 
             return {
@@ -208,15 +215,15 @@ Format as markdown with **Agent:** and **Supplier:** prefixes. Do not include an
             const { text: simulatedTranscript } = await generateText({
               model: googleAI('gemini-3.6-flash'),
               prompt: `Simulate a realistic phone call transcript between an AI verification agent (Agent) and a Chinese supplier (Supplier).
-The agent is calling on behalf of a buyer to verify the supplier's details.
-Company: ${params.companyName}
-Contact Person: ${params.contactName || 'A representative'}
-Product: ${params.productCategory}
-Claimed terms: ${params.claimedTerms}
-Language: ${params.language || 'Mandarin (translated to English for display)'}
+              The agent is calling on behalf of a buyer to verify the supplier's details.
+              Company: ${params.companyName}
+              Contact Person: ${params.contactName || 'A representative'}
+              Product: ${params.productCategory}
+              Claimed terms: ${params.claimedTerms}
+              Language: ${params.language || 'Mandarin (translated to English for display)'}
 
-Make the conversation sound natural, professional, and typical of a business verification call in China. The supplier should confirm the business name, product availability, and terms.
-Format as markdown with **Agent:** and **Supplier:** prefixes. Do not include any other text besides the transcript.`
+              Make the conversation sound natural, professional, and typical of a business verification call in China. The supplier should confirm the business name, product availability, and terms.
+              Format as markdown with **Agent:** and **Supplier:** prefixes. Do not include any other text besides the transcript.`
             });
 
             return {
@@ -233,6 +240,32 @@ Format as markdown with **Agent:** and **Supplier:** prefixes. Do not include an
           }
           
           return liveResult;
+        },
+      }),
+
+      // ── US path ───────────────────────────────────────────────────
+      verifyUSSupplier: tool({
+        description: 'Perform a documentary check for a US supplier by company name or EIN. Run this first, before the call.',
+        inputSchema: z.object({
+          query: z.string().describe('Company name or EIN of the US supplier'),
+        }),
+        execute: async ({ query }) => {
+          return await verifyUSCompany(query);
+        },
+      }),
+
+      callUSSupplier: tool({
+        description: 'Place a CALL-E verification call to a US supplier. Only call this AFTER verifyUSSupplier has returned a result.',
+        inputSchema: z.object({
+          phoneNumber: z.string().describe('Supplier phone number with country code, e.g. +15551234567'),
+          companyName: z.string().describe('Name of the US supplier company'),
+          productCategory: z.string().describe('Product or service category being sourced'),
+          claimedTerms: z.string().describe('The deal terms the listing claimed (price, MOQ, payment terms)'),
+          language: z.string().optional().describe('Language to conduct the call in, default: English'),
+          contactName: z.string().optional().describe('Name of the person to contact, if provided'),
+        }),
+        execute: async (params) => {
+          return await placeVerificationCall({ ...params, region: 'US' });
         },
       }),
     },
