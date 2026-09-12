@@ -55,7 +55,7 @@ export function Workspace() {
   let isCheckingUs = false;
   let isCallingUs = false;
   let claimedTerms: string | undefined;
-  let transcriptToSummarise: string | undefined;
+  let transcriptToSummarise: string | null | undefined;
 
   for (const message of messages) {
     for (const part of message.parts) {
