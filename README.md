@@ -8,7 +8,7 @@
 
 ## Live Demo
 
-[<img src="/public/dashboard.png" alt="TradeCheck Live App" width="100%" style="border-radius: 12px; border: 1px solid #e5e7eb;">](https://tradecheck-demo.vercel.app)
+[<img src="/public/dashboard.png" alt="TradeCheck Live App" width="100%" style="border-radius: 12px; border: 1px solid #e5e7eb;">](https://tradecheck-five.vercel.app)
 
 👉 **[Launch TradeCheck Web App](https://tradecheck-five.vercel.app)** 👈
 
