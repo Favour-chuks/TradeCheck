@@ -26,7 +26,7 @@ export async function verifyChinaCompany(query: string): Promise<ChinaVerificati
       companyName: companyName,
       uscc: uscc,
       legalRepresentative: 'Wang Wei (Simulated)',
-      status: '存续 (Surviving/Active)',
+      status: 'Surviving/Active',
       registrationDate: '2015-08-12',
       registeredCapital: '10,000,000 RMB',
       isVerified: true,
